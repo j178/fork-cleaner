@@ -38,8 +38,8 @@ func (i item) Description() string {
 	if repo.Private {
 		details = append(details, "is private")
 	}
-	if repo.CommitsAhead > 0 {
-		details = append(details, fmt.Sprintf("%d commit%s ahead", repo.CommitsAhead, maybePlural(repo.CommitsAhead)))
+	if repo.CommitsAhead > 0 || repo.CommitsBehind > 0 {
+		details = append(details, fmt.Sprintf("%d commit%s ahead, %d commit%s behind", repo.CommitsAhead, maybePlural(repo.CommitsAhead), repo.CommitsBehind, maybePlural(repo.CommitsBehind)))
 	}
 	if repo.Forks > 0 {
 		details = append(details, fmt.Sprintf("has %d fork%s", repo.Forks, maybePlural(repo.Forks)))
@@ -47,8 +47,8 @@ func (i item) Description() string {
 	if repo.Stars > 0 {
 		details = append(details, fmt.Sprintf("has %d star%s", repo.Stars, maybePlural(repo.Stars)))
 	}
-	if repo.OpenPRs > 0 {
-		details = append(details, fmt.Sprintf("has %d open PR%s to upstream", repo.OpenPRs, maybePlural(repo.OpenPRs)))
+	if repo.AllPRs > 0 {
+		details = append(details, fmt.Sprintf("has %d PR%s to upstream, %d still open", repo.AllPRs, maybePlural(repo.OpenPRs), repo.OpenPRs))
 	}
 	if time.Now().Add(-30 * 24 * time.Hour).Before(repo.LastUpdate) {
 		details = append(details, fmt.Sprintf("recently updated (%s)", timeago.Of(repo.LastUpdate)))

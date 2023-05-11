@@ -24,7 +24,9 @@ type RepositoryWithDetails struct {
 	Forks              int
 	Stars              int
 	OpenPRs            int
+	AllPRs             int
 	CommitsAhead       int
+	CommitsBehind      int
 	LastUpdate         time.Time
 }
 
@@ -49,10 +51,17 @@ func FindAllForks(
 
 		// Get repository as List omits parent information.
 		repo, resp, err := client.Repositories.Get(ctx, login, name)
-		if resp.StatusCode == 403 {
+		if resp.StatusCode == http.StatusForbidden {
 			// no access, ignore
 			continue
 		}
+
+		switch resp.StatusCode {
+		case http.StatusNotFound, http.StatusUnavailableForLegalReasons:
+			forks = append(forks, buildDetails(r, nil, nil, resp.StatusCode))
+			continue
+		}
+
 		if err != nil {
 			return forks, fmt.Errorf("failed to get repository: %s: %w", repo.GetFullName(), err)
 		}
@@ -84,11 +93,18 @@ func FindAllForks(
 }
 
 func buildDetails(repo *github.Repository, issues []*github.Issue, commits *github.CommitsComparison, code int) *RepositoryWithDetails {
-	var openPrs int
+	var openPrs, allPrs, aheadBy, behindBy int
 	for _, issue := range issues {
 		if issue.IsPullRequest() {
-			openPrs++
+			allPrs++
+			if issue.GetState() == "open" {
+				openPrs++
+			}
 		}
+	}
+	if commits != nil {
+		aheadBy = commits.GetAheadBy()
+		behindBy = commits.GetBehindBy()
 	}
 	return &RepositoryWithDetails{
 		Name:               repo.GetFullName(),
@@ -99,8 +115,10 @@ func buildDetails(repo *github.Repository, issues []*github.Issue, commits *gith
 		ParentDMCATakeDown: code == http.StatusUnavailableForLegalReasons,
 		Forks:              repo.GetForksCount(),
 		Stars:              repo.GetStargazersCount(),
+		AllPRs:             allPrs,
 		OpenPRs:            openPrs,
-		CommitsAhead:       commits.GetAheadBy(),
+		CommitsAhead:       aheadBy,
+		CommitsBehind:      behindBy,
 		LastUpdate:         repo.GetUpdatedAt().Time,
 	}
 }
@@ -140,6 +158,7 @@ func getIssues(
 		ListOptions: github.ListOptions{
 			PerPage: pageSize,
 		},
+		State:   "all",
 		Creator: login,
 	}
 	for {
